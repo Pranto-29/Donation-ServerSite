@@ -68,7 +68,7 @@ async function run() {
     const productCollections = database.collection('products');
     const requestCollections = database.collection('requests');
     const bloodCollection = database.collection('donations');
-    paymentCollection = database.collection('payments'); 
+     const paymentCollection = database.collection('payments'); 
 
 //  ------------------ USER ROUTES ------------------
 
@@ -101,6 +101,7 @@ async function run() {
       try {
         const email = req.params.email;
         const user = await userCollections.findOne({ email: email });
+        console.log("User role query result:", user);
         res.status(200).send(user);
       } catch (error) {
         console.error(error);
@@ -123,7 +124,56 @@ async function run() {
       }
     });
 
-    app.get('/search-requests', async (req, res) => {
+    app.patch('/update/user/role/:id', verifyFBToken, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { role } = req.body;
+
+    const result = await userCollections.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { role: role } }
+    );
+
+    res.send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Failed to update role" });
+  }
+});
+
+app.patch('/user/:email', verifyFBToken, async (req, res) => {
+  try {
+    const email = req.params.email;
+    const updatedData = req.body;
+
+    // security check
+    if (req.decoded_email !== email) {
+      return res.status(403).send({ message: "Forbidden access" });
+    }
+
+    const result = await userCollections.updateOne(
+      { email: email },
+      {
+        $set: {
+          displayName: updatedData.displayName,
+          photoURL: updatedData.photoURL,
+          district: updatedData.district,
+          upazila: updatedData.upazila,
+          blood_group: updatedData.blood_group,
+        }
+      }
+    );
+
+    res.send(result);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Profile update failed" });
+  }
+});
+
+
+app.get('/search-requests', async (req, res) => {
   try {
     const { bloodGroup, district, upazila } = req.query;
     const query = {};
@@ -148,6 +198,8 @@ async function run() {
   }
 
 });
+
+
 
     // ------------------ PRODUCT ROUTES ------------------
 
@@ -209,7 +261,7 @@ async function run() {
         const query = { requester_email: email };
 
         const result = await requestCollections.find(query)
-          .limit(size)
+          .limit(3)
           .skip(size*page)
           .toArray();
 
@@ -221,7 +273,6 @@ async function run() {
         res.status(500).send({ message: "Failed to fetch my requests" });
       }
     });
-
     
 app.get('/requests/:id', async (req, res) => {
   try {
@@ -274,9 +325,34 @@ app.delete('/my-requests/:id', verifyFBToken, async (req, res) => {
 });
 
 
+app.patch('/requests/:id', verifyFBToken, async (req, res) => {
+  const id = req.params.id;
+  const { status } = req.body;
+
+  const result = await requestCollections.updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { donation_status: status } }
+  );
+
+  res.send(result);
+});
 
 
+app.get('/my-requests-home', verifyFBToken, async (req, res) => {
+  try {
+    const email = req.decoded_email;
 
+    const result = await requestCollections
+      .find({ requester_email: email })
+      .sort({ createdAt: -1 })   // latest first
+      .limit(3)                  // ONLY 3
+      .toArray();
+
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ message: "Failed to fetch dashboard requests" });
+  }
+});
 // ------------------ PAYMENT ROUTES ------------------
 
 app.post('/create-payment-checkout', async (req, res) => {
@@ -357,6 +433,10 @@ app.post('/success-payment', async (req, res) => {
   }
 });
 
+app.get('/payments', async (req, res) => {
+  const result = await paymentCollection.find().toArray();
+  res.send(result);
+});
 
 
 // })
