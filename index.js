@@ -25,25 +25,42 @@ admin.initializeApp({
 });
 
 // Firebase token verification middleware
-const verifyFBToken = async (req, res, next)=>{
-  const token = req.headers.authorization;
+// const verifyFBToken = async (req, res, next)=>{
+//   const token = req.headers.authorization;
   
-  if(!token) {
-    return res.status(401).send({message : 'unauthorization accses'})
+//   if(!token) {
+//     return res.status(401).send({message : 'unauthorization accses'})
+//   }
+
+//   try {
+//     const idToken = token.split(' ')[1]
+//     const decoded = await admin.auth().verifyIdToken(idToken)
+//     console.log('decoded info',decoded)
+//     req.decoded_email = decoded.email
+//     next();
+//   }
+//   catch(error){
+//        return res.status(401).send({message : 'unauthorization accses'})
+//   }
+// }
+const verifyFBToken = async (req, res, next) => {
+  const token = req.headers.authorization;
+
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorized" });
   }
 
   try {
-    const idToken = token.split(' ')[1]
-    const decoded = await admin.auth().verifyIdToken(idToken)
-    console.log('decoded info',decoded)
-    req.decoded_email = decoded.email
-    next();
-  }
-  catch(error){
-       return res.status(401).send({message : 'unauthorization accses'})
-  }
-}
+    const idToken = token.split(" ")[1];
+    const decoded = await admin.auth().verifyIdToken(idToken);
 
+    req.decoded_email = decoded.email;
+
+    next();
+  } catch (error) {
+    return res.status(401).send({ message: "Invalid token" });
+  }
+};
 // MongoDB connection
 const uri = process.env.MONGO_URI; 
 const client = new MongoClient(uri, {
@@ -68,14 +85,14 @@ async function run() {
     const productCollections = database.collection('products');
     const requestCollections = database.collection('requests');
     const bloodCollection = database.collection('donations');
-     const paymentCollection = database.collection('payments'); 
+    const paymentCollection = database.collection('payments'); 
 
 //  ------------------ USER ROUTES ------------------
 
     app.post('/user', async (req, res) => {
       try {
         const userInfo = req.body;
-        userInfo.role = "donar";
+        userInfo.role = "donnar";
         userInfo.status = 'active';
         userInfo.createdAt = new Date();
         const result = await userCollections.insertOne(userInfo);
@@ -85,6 +102,34 @@ async function run() {
         res.status(500).send({ message: "Failed to create user", error: error.message });
       }
     });
+
+//     app.post('/user', async (req, res) => {
+//   try {
+//     const userInfo = req.body;
+
+//     if (!userInfo.email) {
+//       return res.status(400).send({ message: "Email required" });
+//     }
+
+//     const existUser = await userCollections.findOne({ email: userInfo.email });
+
+//     if (existUser) {
+//       return res.status(200).send({ message: "User already exists" });
+//     }
+
+//     userInfo.role = "donnar";
+//     userInfo.status = "active";
+//     userInfo.createdAt = new Date();
+
+//     const result = await userCollections.insertOne(userInfo);
+
+//     res.status(201).send(result);
+
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).send({ message: "Failed to create user" });
+//   }
+// });
 
     app.get('/user',verifyFBToken, async (req, res) => {
       try {
@@ -242,38 +287,16 @@ app.get('/search-requests', async (req, res) => {
       }
     });
 
-    app.get('/requests', async (req, res) => {
-      try {
-        const requests = await requestCollections.find().toArray();
-        res.status(200).send(requests);
-      } catch (error) {
-        console.error(error);
-        res.status(500).send({ message: "Failed to fetch requests", error: error.message });
-      }
-    });
+    // app.get('/requests', async (req, res) => {
+    //   try {
+    //     const requests = await requestCollections.find().toArray();
+    //     res.status(200).send(requests);
+    //   } catch (error) {
+    //     console.error(error);
+    //     res.status(500).send({ message: "Failed to fetch requests", error: error.message });
+    //   }
+    // });
 
-    app.get('/my-request', verifyFBToken, async(req, res) =>{
-      try {
-        const email = req.decoded_email;
-        const size = Number(req.query.size);
-        const page = Number(req.query.page);
-
-        const query = { requester_email: email };
-
-        const result = await requestCollections.find(query)
-          .limit(3)
-          .skip(size*page)
-          .toArray();
-
-        const totalRequest = await requestCollections.countDocuments(query);
-
-        res.send({ request: result, totalRequest });
-      } catch (error) {
-        console.error(error);
-        res.status(500).send({ message: "Failed to fetch my requests" });
-      }
-    });
-    
 app.get('/requests/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -290,52 +313,155 @@ app.get('/requests/:id', async (req, res) => {
   }
 });
 
-app.get('/requests/:id', async (req, res) => {
-  const result = await requestCollections.findOne({
-    _id: new ObjectId(req.params.id)
-  });
+app.get('/requests', async (req, res) => {
+  try {
+    const page = Number(req.query.page) || 0;
+    const size = Number(req.query.size) || 8;
+    const filter = req.query.filter || "all";
 
-  res.send(result);
+    let query = {};
+
+    if (filter !== "all") {
+      query.donation_status = filter;
+    }
+
+    const result = await requestCollections
+      .find(query)
+      .sort({ createdAt: -1 })
+      .skip(page * size)
+      .limit(size)
+      .toArray();
+
+    const totalRequest = await requestCollections.countDocuments(query);
+
+    res.send({
+      request: result,
+      totalRequest,
+    });
+
+  } catch (err) {
+    res.status(500).send({ message: "Failed to fetch requests" });
+  }
 });
+    app.get('/my-request', verifyFBToken, async(req, res) =>{
+      try {
+        const email = req.decoded_email;
+        const size = Number(req.query.size);
+        const page = Number(req.query.page);
+         const query = {};
+        const user = await userCollections.findOne({ email: email });
+        
+        if( user.role == 'donnar')
+          {
+            query.requester_email = email;}
+        const result = await requestCollections.find(query)
+          .limit(5)
+          .skip(size*page)
+          .toArray();
 
+        const totalRequest = await requestCollections.countDocuments(query);
+
+        res.send({ request: result, totalRequest });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to fetch my requests" });
+      }
+    });
+
+// app.delete('/my-request/:id', verifyFBToken, async (req, res) => {
+//   try {
+//     const email = req.decoded_email;
+//     const id = req.params.id;
+
+//     const request = await requestCollections.findOne({
+//       _id: new ObjectId(id)
+//     });
+
+//     if (!request) {
+//       return res.status(404).send({ success: false, message: "Not found" });
+//     }
+
+//     if (request.requester_email !== email) {
+//       return res.status(403).send({ success: false, message: "Forbidden" });
+//     }
+
+//     const result = await requestCollections.deleteOne({
+//       _id: new ObjectId(id)
+//     });
+
+//     res.send({
+//       success: true,
+//       deletedCount: result.deletedCount,
+//       message: "Deleted successfully"
+//     });
+
+//   } catch (err) {
+//     res.status(500).send({ success: false, message: "Server error" });
+//   }
+//   console.log("DELETE API HIT", req.params.id);
+// });
 
 app.delete('/my-requests/:id', verifyFBToken, async (req, res) => {
   try {
-    const email = req.decoded_email; // logged-in user
-    const requestId = req.params.id;
+    const id = req.params.id;
 
-    const request = await requestCollections.findOne({ _id: new ObjectId(requestId) });
+    const result = await requestCollections.deleteOne({
+      _id: new ObjectId(id)
+    });
 
-    if (!request) {
-      return res.status(404).send({ message: "Request not found" });
-    }
+    res.send({ success: result.deletedCount > 0 });
 
-    if (request.requester_email !== email) {
-      return res.status(403).send({ message: "You are not authorized to delete this request" });
-    }
-
-    // Delete the request
-    await requestCollections.deleteOne({ _id: new ObjectId(requestId) });
-
-    res.send({ message: "Request deleted successfully" });
   } catch (err) {
-    console.error(err);
-    res.status(500).send({ message: "Failed to delete request" });
+    res.status(500).send({ message: "Server error" });
   }
 });
 
+app.get('/my-requests', verifyFBToken, async (req, res) => {
+  try {
+    const email = req.decoded_email;
+   console.log(email)
+    const page = Number(req.query.page) || 0;
+    const size = Number(req.query.size) || 8;
+    const filter = req.query.filter || "all";
 
-app.patch('/requests/:id', verifyFBToken, async (req, res) => {
-  const id = req.params.id;
-  const { status } = req.body;
+    let query = { requester_email: email };
 
-  const result = await requestCollections.updateOne(
-    { _id: new ObjectId(id) },
-    { $set: { donation_status: status } }
-  );
+    if (filter !== "all") {
+      query.donation_status = filter;
+    }
 
-  res.send(result);
+    const result = await requestCollections
+      .find(query)
+      .sort({ createdAt: -1 })
+      .skip(page * size)
+      .limit(size)
+      .toArray();
+
+    const totalRequest = await requestCollections.countDocuments(query);
+
+    res.send({ request: result, totalRequest });
+  } catch (err) {
+    res.status(500).send({ message: "Failed" });
+  }
 });
+
+    
+// app.get('/requests/:id', async (req, res) => {
+//   try {
+//     const id = req.params.id;
+//     const request = await requestCollections.findOne({ _id: new ObjectId(id) });
+
+//     if (!request) {
+//       return res.status(404).send({ message: "Request not found" });
+//     }
+
+//     res.status(200).send(request);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send({ message: "Failed to fetch request", error: err.message });
+//   }
+// });
+
 
 
 app.get('/my-requests-home', verifyFBToken, async (req, res) => {
@@ -344,14 +470,48 @@ app.get('/my-requests-home', verifyFBToken, async (req, res) => {
 
     const result = await requestCollections
       .find({ requester_email: email })
-      .sort({ createdAt: -1 })   // latest first
-      .limit(3)                  // ONLY 3
+      .sort({ createdAt: -1 })   
+      .limit(3)                
       .toArray();
 
     res.send(result);
   } catch (error) {
     res.status(500).send({ message: "Failed to fetch dashboard requests" });
   }
+});
+
+app.patch('/requests/:id', verifyFBToken, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { donation_status } = req.body;
+
+    const result = await requestCollections.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { donation_status } }
+    );
+
+    res.send({
+      success: true,
+      modifiedCount: result.modifiedCount
+    });
+
+  } catch (err) {
+    res.status(500).send({
+      success: false,
+      message: "Update failed"
+    });
+  }
+});
+app.patch('/update-request/:id', async (req, res) => {
+  const id = req.params.id;
+  const data = req.body;
+
+  const result = await requestCollections.updateOne(
+    { _id: new ObjectId(id) },
+    { $set: data }
+  );
+
+  res.send({ success: true });
 });
 // ------------------ PAYMENT ROUTES ------------------
 
@@ -387,8 +547,6 @@ app.post('/create-payment-checkout', async (req, res) => {
         res.status(500).send({ error: error.message });
     }
 });
-
-
 
 app.post('/success-payment', async (req, res) => {
   try {
