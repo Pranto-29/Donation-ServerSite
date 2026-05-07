@@ -313,6 +313,7 @@ app.get('/requests/:id', async (req, res) => {
   }
 });
 
+
 app.get('/requests', async (req, res) => {
   try {
     const page = Number(req.query.page) || 0;
@@ -502,6 +503,7 @@ app.patch('/requests/:id', verifyFBToken, async (req, res) => {
     });
   }
 });
+
 app.patch('/update-request/:id', async (req, res) => {
   const id = req.params.id;
   const data = req.body;
@@ -513,6 +515,8 @@ app.patch('/update-request/:id', async (req, res) => {
 
   res.send({ success: true });
 });
+
+
 // ------------------ PAYMENT ROUTES ------------------
 
 app.post('/create-payment-checkout', async (req, res) => {
@@ -595,9 +599,6 @@ app.get('/payments', async (req, res) => {
   const result = await paymentCollection.find().toArray();
   res.send(result);
 });
-
-
-// })
 
 app.get('/search-requests', async (req, res) => {
   try {
