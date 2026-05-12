@@ -5,7 +5,6 @@ require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const admin = require("firebase-admin");
 const crypto = require('crypto');
-const { data } = require('react-router');
 
 const port = process.env.PORT || 5000;
 const app = express();
@@ -77,7 +76,7 @@ let paymentCollection;
 async function run() {
   try {
     // Connect to MongoDB
-    await client.connect();
+    // await client.connect();
     console.log("MongoDB connected");
 
     const database = client.db('wave-2');
