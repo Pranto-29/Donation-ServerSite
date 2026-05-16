@@ -197,33 +197,6 @@ app.patch('/user/:email', verifyFBToken, async (req, res) => {
   }
 });
 
-
-// app.get('/search-requests', async (req, res) => {
-//   try {
-//     const { bloodGroup, district, upazila } = req.query;
-//     const query = {};
-
-//     if (bloodGroup && bloodGroup.trim() !== "")
-//       query.blood_group = bloodGroup.trim().toUpperCase(); // AB-
-
-//     if (district && district.trim() !== "")
-//       query.recipient_district = new RegExp(`^${district.trim()}$`, "i"); 
-     
-
-//     if (upazila && upazila.trim() !== "")
-//       query.recipient_upazila = new RegExp(`^${upazila.trim()}$`, "i");
-
-//     console.log("MongoDB query:", query);
-
-//     const result = await requestCollections .find(query).toArray();
-//     res.send(result);
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).send({ error: "Internal server error" });
-//   }
-
-// });
-
 app.get('/search-requests', async (req, res) => {
   try {
     const { bloodGroup, district, upazila } = req.query;
