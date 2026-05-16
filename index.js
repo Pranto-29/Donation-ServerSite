@@ -457,23 +457,6 @@ app.get('/my-requests', verifyFBToken, async (req, res) => {
   }
 });
 
-    
-// app.get('/requests/:id', async (req, res) => {
-//   try {
-//     const id = req.params.id;
-//     const request = await requestCollections.findOne({ _id: new ObjectId(id) });
-
-//     if (!request) {
-//       return res.status(404).send({ message: "Request not found" });
-//     }
-
-//     res.status(200).send(request);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).send({ message: "Failed to fetch request", error: err.message });
-//   }
-// });
-
 app.get('/my-requests-home', verifyFBToken, async (req, res) => {
   try {
     const email = req.decoded_email;
