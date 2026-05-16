@@ -23,25 +23,6 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
-// Firebase token verification middleware
-// const verifyFBToken = async (req, res, next)=>{
-//   const token = req.headers.authorization;
-  
-//   if(!token) {
-//     return res.status(401).send({message : 'unauthorization accses'})
-//   }
-
-//   try {
-//     const idToken = token.split(' ')[1]
-//     const decoded = await admin.auth().verifyIdToken(idToken)
-//     console.log('decoded info',decoded)
-//     req.decoded_email = decoded.email
-//     next();
-//   }
-//   catch(error){
-//        return res.status(401).send({message : 'unauthorization accses'})
-//   }
-// }
 const verifyFBToken = async (req, res, next) => {
   const token = req.headers.authorization;
 
@@ -77,7 +58,7 @@ async function run() {
   try {
     // Connect to MongoDB
     // await client.connect();
-    console.log("MongoDB connected");
+    // console.log("MongoDB connected");
 
     const database = client.db('wave-2');
     const userCollections = database.collection('user');
@@ -217,33 +198,73 @@ app.patch('/user/:email', verifyFBToken, async (req, res) => {
 });
 
 
+// app.get('/search-requests', async (req, res) => {
+//   try {
+//     const { bloodGroup, district, upazila } = req.query;
+//     const query = {};
+
+//     if (bloodGroup && bloodGroup.trim() !== "")
+//       query.blood_group = bloodGroup.trim().toUpperCase(); // AB-
+
+//     if (district && district.trim() !== "")
+//       query.recipient_district = new RegExp(`^${district.trim()}$`, "i"); 
+     
+
+//     if (upazila && upazila.trim() !== "")
+//       query.recipient_upazila = new RegExp(`^${upazila.trim()}$`, "i");
+
+//     console.log("MongoDB query:", query);
+
+//     const result = await requestCollections .find(query).toArray();
+//     res.send(result);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).send({ error: "Internal server error" });
+//   }
+
+// });
+
 app.get('/search-requests', async (req, res) => {
   try {
     const { bloodGroup, district, upazila } = req.query;
+
     const query = {};
 
-    if (bloodGroup && bloodGroup.trim() !== "")
-      query.blood_group = bloodGroup.trim().toUpperCase(); // AB-
+    // Blood Group
+    if (bloodGroup && bloodGroup.trim() !== "") {
+      query.bloodGroup = bloodGroup.trim().toUpperCase();
+    }
 
-    if (district && district.trim() !== "")
-      query.recipient_district = new RegExp(`^${district.trim()}$`, "i"); 
-     
+    // District
+    if (district && district.trim() !== "") {
+      query.district = new RegExp(`^${district.trim()}$`, "i");
+    }
 
-    if (upazila && upazila.trim() !== "")
-      query.recipient_upazila = new RegExp(`^${upazila.trim()}$`, "i");
+    // Upazila
+    if (upazila && upazila.trim() !== "") {
+      query.upazila = new RegExp(`^${upazila.trim()}$`, "i");
+    }
 
-    console.log("MongoDB query:", query);
+    // ONLY DONOR
+    query.role = "donnar";
 
-    const result = await requestCollections .find(query).toArray();
+    // ONLY ACTIVE USER
+    query.status = "active";
+
+    console.log(query);
+
+    const result = await usersCollection.find(query).toArray();
+
     res.send(result);
+
   } catch (error) {
-    console.error(error);
-    res.status(500).send({ error: "Internal server error" });
+    console.log(error);
+
+    res.status(500).send({
+      message: "Server Error",
+    });
   }
-
 });
-
-
 
     // ------------------ PRODUCT ROUTES ------------------
 
@@ -286,15 +307,6 @@ app.get('/search-requests', async (req, res) => {
       }
     });
 
-    // app.get('/requests', async (req, res) => {
-    //   try {
-    //     const requests = await requestCollections.find().toArray();
-    //     res.status(200).send(requests);
-    //   } catch (error) {
-    //     console.error(error);
-    //     res.status(500).send({ message: "Failed to fetch requests", error: error.message });
-    //   }
-    // });
 
 app.get('/requests/:id', async (req, res) => {
   try {
@@ -622,10 +634,7 @@ app.get('/search-requests', async (req, res) => {
     console.error(error);
     res.status(500).send({ error: "Internal server error" });
   }
-
 });
-
-
 app.get('/my-payments', async (req, res) => {
   const email = req.query.email;
 
