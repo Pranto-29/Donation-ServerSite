@@ -28,18 +28,16 @@ const verifyFBToken = async (req, res, next) => {
   if (!token) {
     return res.status(401).send({ message: "Unauthorized" });
   }
-
   try {
     const idToken = token.split(" ")[1];
     const decoded = await admin.auth().verifyIdToken(idToken);
-
     req.decoded_email = decoded.email;
-
     next();
   } catch (error) {
     return res.status(401).send({ message: "Invalid token" });
   }
 };
+
 // MongoDB connection
 const uri = process.env.MONGO_URI; 
 const client = new MongoClient(uri, {
