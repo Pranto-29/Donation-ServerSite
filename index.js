@@ -5,7 +5,6 @@ require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const admin = require("firebase-admin");
 const crypto = require('crypto');
-
 const port = process.env.PORT || 5000;
 const app = express();
 
